@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# UV
+uv.lock
+.cache/
+
+# Backend
+backend/chroma_data/
+backend/.env
+backend/.venv/
+
+# Frontend (will add later)
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
