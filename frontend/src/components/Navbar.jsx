@@ -1,17 +1,16 @@
-// frontend/src/components/Navbar.jsx
 import { Link } from "react-router-dom";
 
 function Navbar() {
   return (
-    <nav style={navStyle}>
-      <ul style={ulStyle}>
+    <nav className="navbar">
+      <ul className="nav-list">
         <li>
-          <Link to="/documents" style={linkStyle}>
+          <Link to="/documents" className="nav-link">
             Documents
           </Link>
         </li>
         <li>
-          <Link to="/chat" style={linkStyle}>
+          <Link to="/chat" className="nav-link">
             Chat
           </Link>
         </li>
@@ -19,24 +18,5 @@ function Navbar() {
     </nav>
   );
 }
-
-const navStyle = {
-  backgroundColor: "#333",
-  padding: "10px",
-};
-
-const ulStyle = {
-  listStyle: "none",
-  display: "flex",
-  gap: "20px",
-  margin: 0,
-  padding: 0,
-};
-
-const linkStyle = {
-  color: "white",
-  textDecoration: "none",
-  fontSize: "18px",
-};
 
 export default Navbar;

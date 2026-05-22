@@ -1,5 +1,4 @@
-// frontend/src/components/TsnePlot.jsx
-import { useRef, useEffect } from "react";
+﻿import { useRef, useEffect } from "react";
 import Plotly from "plotly.js-dist";
 
 function TsnePlot({ points, loading }) {
@@ -13,7 +12,7 @@ function TsnePlot({ points, loading }) {
       y: points.map((p) => p.y),
       mode: "markers",
       type: "scatter",
-      marker: { size: 8, color: "#1f77b4" },
+      marker: { size: 8, color: "#0ea5e9" },
       text: points.map((p) => `<b>${p.filename}</b><br>${p.chunk_text}`),
       hoverinfo: "text",
     };
@@ -23,22 +22,37 @@ function TsnePlot({ points, loading }) {
       xaxis: { title: "t‑SNE component 1" },
       yaxis: { title: "t‑SNE component 2" },
       hovermode: "closest",
-      margin: { t: 40, l: 40, r: 40, b: 40 },
+      margin: { t: 40, l: 40, r: 24, b: 40 },
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent",
+      font: { color: "#0f172a" },
     };
 
     Plotly.newPlot(plotRef.current, [trace], layout, { responsive: true });
 
-    // Cleanup
     return () => {
       if (plotRef.current) Plotly.purge(plotRef.current);
     };
   }, [points, loading]);
 
-  if (loading) return <div>Loading t‑SNE visualization...</div>;
-  if (!points || points.length === 0)
-    return <div>No data to display. Upload a document first.</div>;
+  if (loading) {
+    return (
+      <div className="card loading-state">
+        <span className="loading-chip">Loading semantic map</span>
+        <div className="skeleton skeleton-block" />
+      </div>
+    );
+  }
 
-  return <div ref={plotRef} style={{ width: "100%", height: "500px" }} />;
+  if (!points || points.length === 0) {
+    return (
+      <div className="empty-state">
+        No data to display. Upload a document first.
+      </div>
+    );
+  }
+
+  return <div ref={plotRef} className="tsne-plot" />;
 }
 
 export default TsnePlot;

@@ -4,23 +4,26 @@ function DocumentList({ documents, onDeleteSuccess }) {
   const handleDelete = async (filename) => {
     if (!window.confirm(`Delete "${filename}"?`)) return;
     try {
-      await deleteDocument(filename); // from api.js
+      await deleteDocument(filename);
       if (onDeleteSuccess) onDeleteSuccess();
     } catch (err) {
       alert(`Delete failed: ${err.message}`);
     }
   };
 
-  if (documents.length === 0) {
+  if (!documents || documents.length === 0) {
     return <p>No documents uploaded yet.</p>;
   }
 
   return (
-    <ul style={listStyle}>
+    <ul className="doc-list">
       {documents.map((doc) => (
-        <li key={doc} style={listItemStyle}>
-          <span>{doc}</span>
-          <button onClick={() => handleDelete(doc)} style={buttonStyle}>
+        <li key={doc} className="doc-item">
+          <span className="filename">{doc}</span>
+          <button
+            onClick={() => handleDelete(doc)}
+            className="btn btn-danger small"
+          >
             Delete
           </button>
         </li>
@@ -28,28 +31,5 @@ function DocumentList({ documents, onDeleteSuccess }) {
     </ul>
   );
 }
-
-const listStyle = {
-  listStyle: "none",
-  padding: 0,
-  margin: 0,
-};
-
-const listItemStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "8px",
-  borderBottom: "1px solid #eee",
-};
-
-const buttonStyle = {
-  backgroundColor: "#dc3545",
-  color: "white",
-  border: "none",
-  borderRadius: "4px",
-  padding: "4px 8px",
-  cursor: "pointer",
-};
 
 export default DocumentList;

@@ -1,5 +1,4 @@
-// frontend/src/hooks/useChatData.js
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { sendChat, getLogs } from "../services/api";
 
 export function useChatData() {
@@ -9,49 +8,57 @@ export function useChatData() {
   const [confidence, setConfidence] = useState(0);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchLogs = useCallback(() => {
-    getLogs()
-      .then((logsData) => {
-        setLogs(logsData);
-        setError(null);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch logs:", err);
-        setError("Could not load chat logs.");
-      });
+  const fetchLogs = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLogsLoading(true);
+    }
+
+    try {
+      const logsData = await getLogs();
+      setLogs(logsData);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch logs:", err);
+      setError("Could not load chat logs.");
+    } finally {
+      if (!silent) {
+        setLogsLoading(false);
+      }
+    }
   }, []);
 
+  useEffect(() => {
+    void fetchLogs();
+  }, [fetchLogs]);
+
   const submitQuestion = useCallback(
-    (q) => {
+    async (q) => {
       setLoading(true);
       setError(null);
-      sendChat(q)
-        .then((response) => {
-          setAnswer(response.answer);
-          setSources(response.sources);
-          setConfidence(response.confidence);
-          // After sending, refresh logs to include this new interaction
-          fetchLogs();
-        })
-        .catch((err) => {
-          console.error("Chat error:", err);
-          setError(err.message || "Failed to get answer from chatbot.");
-          setAnswer("");
-          setSources([]);
-          setConfidence(0);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      try {
+        const response = await sendChat(q);
+        setAnswer(response.answer);
+        setSources(response.sources);
+        setConfidence(response.confidence);
+        await fetchLogs({ silent: true });
+      } catch (err) {
+        console.error("Chat error:", err);
+        setError(err.message || "Failed to get answer from chatbot.");
+        setAnswer("");
+        setSources([]);
+        setConfidence(0);
+      } finally {
+        setLoading(false);
+      }
     },
     [fetchLogs],
   );
 
-  // Expose a function to manually refresh logs (e.g., for polling)
   const refreshLogs = useCallback(() => {
-    fetchLogs();
+    void fetchLogs({ silent: true });
   }, [fetchLogs]);
 
   return {
@@ -62,6 +69,7 @@ export function useChatData() {
     confidence,
     logs,
     loading,
+    logsLoading,
     error,
     submitQuestion,
     refreshLogs,

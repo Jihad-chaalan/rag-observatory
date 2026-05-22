@@ -8,8 +8,7 @@ function DocumentUpload({ onUploadSuccess }) {
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
       try {
-        // You could show a loading indicator here
-        const result = await uploadFile(file); // from api.js
+        const result = await uploadFile(file);
         console.log("Upload success:", result);
         if (onUploadSuccess) onUploadSuccess();
       } catch (err) {
@@ -37,7 +36,7 @@ function DocumentUpload({ onUploadSuccess }) {
   });
 
   return (
-    <div {...getRootProps()} style={dropzoneStyle}>
+    <div {...getRootProps()} className="dropzone">
       <input {...getInputProps()} />
       {isDragActive ? (
         <p>Drop the file here ...</p>
@@ -48,14 +47,5 @@ function DocumentUpload({ onUploadSuccess }) {
     </div>
   );
 }
-
-const dropzoneStyle = {
-  border: "2px dashed #cccccc",
-  borderRadius: "4px",
-  padding: "20px",
-  textAlign: "center",
-  cursor: "pointer",
-  marginBottom: "20px",
-};
 
 export default DocumentUpload;
