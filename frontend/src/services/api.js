@@ -1,4 +1,5 @@
-import axios from "axios";
+﻿import axios from "axios";
+import { readSessionCacheMeta, writeSessionCacheMeta } from "../utils/sessionCache";
 
 // ----------------------------- Session ID Management -----------------------------
 const STORAGE_KEY = "rag_session_id";
@@ -6,7 +7,7 @@ const STORAGE_KEY = "rag_session_id";
 function getSessionId() {
   let sessionId = localStorage.getItem(STORAGE_KEY);
   if (!sessionId) {
-    sessionId = crypto.randomUUID(); // generate UUID v4
+    sessionId = crypto.randomUUID();
     localStorage.setItem(STORAGE_KEY, sessionId);
   }
   return sessionId;
@@ -16,115 +17,154 @@ function setSessionId(sessionId) {
   localStorage.setItem(STORAGE_KEY, sessionId);
 }
 
-// ----------------------------- Axios Instance -----------------------------
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 30000, // 30 seconds
-});
+function createClient(baseURL) {
+  const client = axios.create({
+    baseURL,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    timeout: 30000,
+  });
 
-// Request interceptor: add session ID header
-api.interceptors.request.use((config) => {
-  const sessionId = getSessionId();
-  config.headers["X-Session-Id"] = sessionId;
-  return config;
-});
+  client.interceptors.request.use((config) => {
+    config.headers["X-Session-Id"] = getSessionId();
+    return config;
+  });
 
-// Response interceptor: handle common errors globally
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response) {
-      // Backend responded with error status
-      const message = error.response.data?.detail || error.response.statusText;
-      return Promise.reject(new Error(message));
-    } else if (error.request) {
-      // No response from backend
-      return Promise.reject(
-        new Error("Backend is unreachable. Is the server running?"),
-      );
-    } else {
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response) {
+        const message = error.response.data?.detail || error.response.statusText;
+        return Promise.reject(new Error(message));
+      }
+      if (error.request) {
+        return Promise.reject(new Error("Backend is unreachable. Is the server running?"));
+      }
       return Promise.reject(error);
+    },
+  );
+
+  return client;
+}
+
+const proxyApi = createClient(import.meta.env.VITE_API_URL || "/api");
+const directApi = createClient("http://localhost:8000");
+const loopbackApi = createClient("http://127.0.0.1:8000");
+
+async function requestWithFallback(config) {
+  const clients = [proxyApi, directApi, loopbackApi];
+  let lastError = null;
+
+  for (const client of clients) {
+    try {
+      return await client.request(config);
+    } catch (error) {
+      lastError = error;
+      if (error.message !== "Backend is unreachable. Is the server running?") {
+        throw error;
+      }
     }
-  },
-);
+  }
+
+  throw lastError;
+}
 
 // ----------------------------- API Methods -----------------------------
-
-/**
- * Send heartbeat to keep session alive
- */
 export async function sendHeartbeat() {
   try {
-    await api.post("/session/heartbeat");
+    await requestWithFallback({ method: "post", url: "/session/heartbeat" });
   } catch (error) {
     console.warn("Heartbeat failed:", error.message);
   }
 }
 
-/**
- * Upload a file (multipart/form-data)
- * @param {File} file - The file to upload
- */
-export async function uploadFile(file) {
+export async function uploadFile(file, onUploadProgress = undefined) {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await api.post("/documents/upload", formData, {
+  const response = await requestWithFallback({
+    method: "post",
+    url: "/documents/upload",
+    data: formData,
     headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress,
   });
   return response.data;
 }
 
-/**
- * List all documents in current session
- */
-export async function listDocuments() {
-  const response = await api.get("/documents/list");
-  return response.data.documents; // array of filenames
-}
-
-/**
- * Delete a document by filename
- * @param {string} filename
- */
 export async function deleteDocument(filename) {
-  const response = await api.delete(
-    `/documents/delete/${encodeURIComponent(filename)}`,
-  );
+  const response = await requestWithFallback({
+    method: "delete",
+    url: `/documents/delete/${encodeURIComponent(filename)}`,
+  });
   return response.data;
 }
 
-/**
- * Send a chat question
- * @param {string} question
- */
 export async function sendChat(question) {
-  const response = await api.post("/chat/chat", { question });
-  return response.data; // { answer, sources, confidence, logs }
+  const response = await requestWithFallback({
+    method: "post",
+    url: "/chat/chat",
+    data: { question },
+  });
+  return response.data;
 }
 
-/**
- * Get chat logs for current session
- */
+export async function listDocuments() {
+  const response = await requestWithFallback({ method: "get", url: "/documents/list" });
+  return response.data.documents;
+}
+
 export async function getLogs() {
-  const response = await api.get("/chat/logs");
-  return response.data.logs; // array of log entries
+  const response = await requestWithFallback({ method: "get", url: "/chat/logs" });
+  return response.data.logs;
 }
 
-/**
- * Get t‑SNE points for all chunks
- */
 export async function getTsne() {
-  const response = await api.get("/visualization/tsne");
-  return response.data.points; // array of { x, y, filename, chunk_text, chunk_index }
+  const response = await requestWithFallback({ method: "get", url: "/visualization/tsne" });
+  return response.data.points;
 }
 
-/**
- * Manually set a session ID (useful for testing or switching sessions)
- * @param {string} newSessionId
- */
+async function conditionalGet(path, namespace) {
+  const meta = readSessionCacheMeta(namespace) || {};
+  const headers = {};
+  if (meta.etag) headers["If-None-Match"] = meta.etag;
+  if (meta.lastModified) headers["If-Modified-Since"] = meta.lastModified;
+
+  const response = await requestWithFallback({
+    method: "get",
+    url: path,
+    headers,
+    validateStatus: (status) => status === 200 || status === 304,
+  });
+
+  if (response.status === 304) {
+    return { notModified: true, data: null, meta };
+  }
+
+  const etag = response.headers["etag"] || response.headers["ETag"] || null;
+  const lastModified =
+    response.headers["last-modified"] || response.headers["Last-Modified"] || null;
+
+  writeSessionCacheMeta(namespace, { etag, lastModified });
+
+  return { notModified: false, data: response.data, meta: { etag, lastModified } };
+}
+
+export async function listDocumentsConditional() {
+  const res = await conditionalGet("/documents/list", "documents");
+  return { notModified: res.notModified, documents: res.data ? res.data.documents : null };
+}
+
+export async function getTsneConditional() {
+  const res = await conditionalGet("/visualization/tsne", "tsne");
+  return { notModified: res.notModified, points: res.data ? res.data.points : null };
+}
+
+export async function getLogsConditional() {
+  const res = await conditionalGet("/chat/logs", "chat-logs");
+  return { notModified: res.notModified, logs: res.data ? res.data.logs : null };
+}
+
 export function setSessionIdManually(newSessionId) {
   setSessionId(newSessionId);
 }

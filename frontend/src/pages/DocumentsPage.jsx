@@ -1,7 +1,9 @@
+﻿import { lazy, Suspense } from "react";
 import DocumentUpload from "../components/DocumentUpload";
 import DocumentList from "../components/DocumentList";
-import TsnePlot from "../components/TsnePlot";
 import { useDocumentsData } from "../hooks/useDocuments";
+
+const TsnePlot = lazy(() => import("../components/TsnePlot"));
 
 function LoadingDocumentsView() {
   return (
@@ -77,7 +79,18 @@ function LoadingDocumentsView() {
 }
 
 function DocumentsPage() {
-  const { documents, tsnePoints, loading, error, refresh } = useDocumentsData();
+  const {
+    documents,
+    tsnePoints,
+    loading,
+    refreshing,
+    error,
+    refresh,
+  } = useDocumentsData();
+
+  const handleDataChange = () => {
+    refresh({ force: true, background: true });
+  };
 
   if (loading) {
     return <LoadingDocumentsView />;
@@ -91,7 +104,7 @@ function DocumentsPage() {
           <h1>Document Manager</h1>
         </header>
         <div className="error-banner">{error}</div>
-        <button onClick={refresh} className="btn btn-ghost btn-inline">
+        <button onClick={() => refresh({ force: true, background: false })} className="btn btn-ghost btn-inline">
           Retry
         </button>
       </div>
@@ -104,9 +117,10 @@ function DocumentsPage() {
         <span className="loading-chip">Documents workspace</span>
         <h1>Document Manager</h1>
         <p className="page-subtitle">
-          Upload files, manage the current knowledge base, and inspect how chunks
+          Upload files, manage the active knowledge base, and inspect how chunks
           are arranged in semantic space.
         </p>
+        {refreshing && <span className="loading-chip">Refreshing data</span>}
       </header>
 
       <div className="grid-two">
@@ -118,7 +132,7 @@ function DocumentsPage() {
               and desktop.
             </p>
           </div>
-          <DocumentUpload onUploadSuccess={refresh} />
+          <DocumentUpload onUploadSuccess={handleDataChange} />
         </section>
 
         <section className="card stack">
@@ -128,7 +142,7 @@ function DocumentsPage() {
               Keep the active document set clean and easy to scan.
             </p>
           </div>
-          <DocumentList documents={documents} onDeleteSuccess={refresh} />
+          <DocumentList documents={documents} onDeleteSuccess={handleDataChange} />
         </section>
       </div>
 
@@ -139,7 +153,16 @@ function DocumentsPage() {
             A live view of document chunk clustering for quick sanity checks.
           </p>
         </div>
-        <TsnePlot points={tsnePoints} loading={loading} />
+        <Suspense
+          fallback={
+            <div className="loading-state">
+              <span className="loading-chip">Loading semantic map</span>
+              <div className="skeleton skeleton-block skeleton-map" />
+            </div>
+          }
+        >
+          <TsnePlot points={tsnePoints} loading={loading} />
+        </Suspense>
       </section>
     </div>
   );
