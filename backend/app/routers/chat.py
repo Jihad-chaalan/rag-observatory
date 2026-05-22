@@ -50,7 +50,7 @@ async def chat(
         
         valid_chunks = []
         for doc, score in docs_with_scores:
-            # Correct cosine similarity from Euclidean distance
+            # cosine similarity from Euclidean distance
             cosine_sim = 1 - (score ** 2) / 2
             similarity = max(0.0, min(1.0, cosine_sim))
             print(f"Distance: {score}, Cosine Similarity: {similarity}")
