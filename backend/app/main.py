@@ -6,9 +6,8 @@ from app.services.session_manager import init_session_manager
 from app.routers import session, documents, chat, visualization
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    chroma_client = get_chroma_client()
-    init_session_manager(chroma_client, ttl_seconds=3600)
+
+    init_session_manager(data_root="./chroma_data", ttl_seconds=3600)
     yield
     # Shutdown: anything needed (nothing special)
 
