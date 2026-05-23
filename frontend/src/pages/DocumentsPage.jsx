@@ -1,9 +1,6 @@
-﻿import { lazy, Suspense } from "react";
 import DocumentUpload from "../components/DocumentUpload";
 import DocumentList from "../components/DocumentList";
 import { useDocumentsData } from "../hooks/useDocuments";
-
-const TsnePlot = lazy(() => import("../components/TsnePlot"));
 
 function LoadingDocumentsView() {
   return (
@@ -66,27 +63,12 @@ function LoadingDocumentsView() {
           <div className="skeleton skeleton-card" />
         </div>
       </div>
-
-      <div className="card loading-state loading-panel">
-        <div className="panel-header-row">
-          <div className="skeleton skeleton-line skeleton-w-40" />
-          <span className="loading-chip">Semantic map</span>
-        </div>
-        <div className="skeleton skeleton-card skeleton-map" />
-      </div>
     </div>
   );
 }
 
 function DocumentsPage() {
-  const {
-    documents,
-    tsnePoints,
-    loading,
-    refreshing,
-    error,
-    refresh,
-  } = useDocumentsData();
+  const { documents, loading, refreshing, error, refresh } = useDocumentsData();
 
   const handleDataChange = () => {
     refresh({ force: true, background: true });
@@ -104,7 +86,10 @@ function DocumentsPage() {
           <h1>Document Manager</h1>
         </header>
         <div className="error-banner">{error}</div>
-        <button onClick={() => refresh({ force: true, background: false })} className="btn btn-ghost btn-inline">
+        <button
+          onClick={() => refresh({ force: true, background: false })}
+          className="btn btn-ghost btn-inline"
+        >
           Retry
         </button>
       </div>
@@ -141,29 +126,16 @@ function DocumentsPage() {
             <p className="page-subtitle">
               Keep the active document set clean and easy to scan.
             </p>
+            <div className="status-banner retention-banner upload-retention-note">
+              Files are deleted 1 hour after you close this tab.
+            </div>
           </div>
-          <DocumentList documents={documents} onDeleteSuccess={handleDataChange} />
+          <DocumentList
+            documents={documents}
+            onDeleteSuccess={handleDataChange}
+          />
         </section>
       </div>
-
-      <section className="card stack">
-        <div className="page-header">
-          <h2>Chunk Visualization (t‑SNE)</h2>
-          <p className="page-subtitle">
-            A live view of document chunk clustering for quick sanity checks.
-          </p>
-        </div>
-        <Suspense
-          fallback={
-            <div className="loading-state">
-              <span className="loading-chip">Loading semantic map</span>
-              <div className="skeleton skeleton-block skeleton-map" />
-            </div>
-          }
-        >
-          <TsnePlot points={tsnePoints} loading={loading} />
-        </Suspense>
-      </section>
     </div>
   );
 }

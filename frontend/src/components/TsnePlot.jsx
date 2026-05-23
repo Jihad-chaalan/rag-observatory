@@ -37,9 +37,41 @@ function TsnePlot({ points, loading }) {
 
   if (loading) {
     return (
-      <div className="card loading-state">
-        <span className="loading-chip">Loading semantic map</span>
-        <div className="skeleton skeleton-block" />
+      <div className="card loading-state tsne-loading-panel">
+        <div className="tsne-loading-top">
+          <div className="loading-status">
+            <span className="pulse-dot" aria-hidden="true" />
+            <span className="loading-chip">Loading semantic map</span>
+          </div>
+          <p className="tsne-loading-copy">
+            Fetching chunk points from the vector database and preparing the 2D
+            projection.
+          </p>
+        </div>
+
+        <div className="tsne-loading-graph" aria-hidden="true">
+          <div className="tsne-loading-grid">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+
+          <div className="tsne-loading-pulse tsne-loading-pulse--one" />
+          <div className="tsne-loading-pulse tsne-loading-pulse--two" />
+          <div className="tsne-loading-pulse tsne-loading-pulse--three" />
+        </div>
+
+        <div className="tsne-loading-footer">
+          <div className="skeleton skeleton-line skeleton-w-36" />
+          <div className="skeleton skeleton-line skeleton-w-54" />
+          <div className="skeleton skeleton-line skeleton-w-28" />
+        </div>
       </div>
     );
   }

@@ -1,8 +1,9 @@
-﻿import axios from "axios";
+import axios from "axios";
 import { readSessionCacheMeta, writeSessionCacheMeta } from "../utils/sessionCache";
 
 // ----------------------------- Session ID Management -----------------------------
 const STORAGE_KEY = "rag_session_id";
+const DEFAULT_REQUEST_TIMEOUT_MS = 120000;
 
 function getSessionId() {
   let sessionId = localStorage.getItem(STORAGE_KEY);
@@ -17,13 +18,13 @@ function setSessionId(sessionId) {
   localStorage.setItem(STORAGE_KEY, sessionId);
 }
 
-function createClient(baseURL) {
+function createClient(baseURL, timeout = DEFAULT_REQUEST_TIMEOUT_MS) {
   const client = axios.create({
     baseURL,
     headers: {
       "Content-Type": "application/json",
     },
-    timeout: 30000,
+    timeout,
   });
 
   client.interceptors.request.use((config) => {
@@ -34,6 +35,9 @@ function createClient(baseURL) {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
+      if (error.code === "ECONNABORTED" || String(error.message || "").toLowerCase().includes("timeout")) {
+        return Promise.reject(new Error("Request timed out. The server is still processing this request."));
+      }
       if (error.response) {
         const message = error.response.data?.detail || error.response.statusText;
         return Promise.reject(new Error(message));

@@ -1,19 +1,8 @@
-import ChatInterface from "../components/ChatInterface";
-import RequestLogs from "../components/RequestLogs";
+﻿import ChatInterface from "../components/ChatInterface";
 import { useChatData } from "../hooks/useChatData";
 
 function ChatPage() {
-  const {
-    answer,
-    sources,
-    confidence,
-    logs,
-    loading,
-    logsLoading,
-    error,
-    submitQuestion,
-    refreshLogs,
-  } = useChatData();
+  const { answer, sources, confidence, loading, error, submitQuestion } = useChatData();
 
   return (
     <div className="container page-shell">
@@ -36,17 +25,6 @@ function ChatPage() {
           sources={sources}
           confidence={confidence}
         />
-      </div>
-
-      <div className="card">
-        <div className="page-header section-gap">
-          <h2>Conversation history</h2>
-          <p className="page-subtitle">
-            Recent questions and response metadata appear here after the backend
-            responds.
-          </p>
-        </div>
-        <RequestLogs logs={logs} loading={loading || logsLoading} onRefresh={refreshLogs} />
       </div>
     </div>
   );

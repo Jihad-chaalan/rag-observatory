@@ -13,7 +13,7 @@ function RequestLogs({ logs, loading, onRefresh }) {
       <div className="loading-state logs-loading">
         <div className="loading-status">
           <span className="pulse-dot" aria-hidden="true" />
-          <span className="loading-chip">Refreshing chat history</span>
+          <span className="loading-chip">Refreshing observability dashboard</span>
         </div>
         <div className="logs-loading-grid">
           <div className="log-loading-row">
@@ -49,19 +49,12 @@ function RequestLogs({ logs, loading, onRefresh }) {
 
   return (
     <div className="logs-grid">
-      {/* <div className="logs-grid-head" aria-hidden="true">
-        <span>Timestamp</span>
-        <span>Question</span>
-        <span>Answer Preview</span>
-        <span>Meta</span>
-      </div> */}
-
       {logs.map((log, idx) => (
         <article key={idx} className="log-card">
           <div className="log-field log-timestamp">
             <span className="log-label">Timestamp</span>
             <span className="log-value">
-              {new Date(log.timestamp * 1000).toLocaleTimeString()}
+              {new Date(log.timestamp * 1000).toLocaleString()}
             </span>
           </div>
 
@@ -73,8 +66,15 @@ function RequestLogs({ logs, loading, onRefresh }) {
           <div className="log-field log-answer">
             <span className="log-label">Answer Preview</span>
             <span className="log-value">
-              {(log.answer || "").substring(0, 120)}
-              {log.answer && log.answer.length > 120 ? "…" : ""}
+              {(log.answer || "").substring(0, 140)}
+              {log.answer && log.answer.length > 140 ? "…" : ""}
+            </span>
+          </div>
+
+          <div className="log-field log-sources">
+            <span className="log-label">Sources</span>
+            <span className="log-value">
+              {log.sources?.length ? log.sources.join(", ") : "No sources returned"}
             </span>
           </div>
 
@@ -88,7 +88,9 @@ function RequestLogs({ logs, loading, onRefresh }) {
             <div className="log-field">
               <span className="log-label">Tokens</span>
               <span className="log-value">
-                {log.token_usage?.total_tokens || "-"}
+                {log.token_usage?.error
+                  ? log.token_usage.error
+                  : log.token_usage?.total_tokens || "-"}
               </span>
             </div>
             <div className="log-field">
@@ -98,6 +100,17 @@ function RequestLogs({ logs, loading, onRefresh }) {
               </span>
             </div>
           </div>
+
+          {log.token_usage && !log.token_usage.error && (
+            <div className="log-token-breakdown">
+              <span className="log-label">Token breakdown</span>
+              <span className="log-value">
+                Prompt {log.token_usage.prompt_tokens || 0} / Completion {" "}
+                {log.token_usage.completion_tokens || 0} / Total {" "}
+                {log.token_usage.total_tokens || 0}
+              </span>
+            </div>
+          )}
         </article>
       ))}
     </div>
