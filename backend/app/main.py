@@ -1,26 +1,35 @@
 ﻿from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from app.dependencies import get_chroma_client
 from app.services.session_manager import init_session_manager
 from app.routers import session, documents, chat, visualization
+import os
+import json
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_session_manager(data_root="./chroma_data", ttl_seconds=3600)
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL not set")
+    init_session_manager(database_url=database_url, ttl_seconds=3600)
     yield
-    # Shutdown: anything needed (nothing special)
 
 app = FastAPI(title="RAG Observatory", lifespan=lifespan)
 
+
+cors_origins_env = os.getenv("CORS_ORIGINS")
+if cors_origins_env and cors_origins_env.strip():
+    try:
+        allow_origins = json.loads(cors_origins_env)
+    except json.JSONDecodeError:
+        print("Invalid CORS_ORIGINS JSON, using defaults")
+        allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+else:
+    allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

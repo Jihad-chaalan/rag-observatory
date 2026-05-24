@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from tempfile import NamedTemporaryFile
+from sqlalchemy import create_engine, text
 import os
 from langchain_community.document_loaders import (
     TextLoader,
@@ -51,6 +52,7 @@ async def upload_document(
         
         # Add source filename to metadata of each document
         for doc in docs:
+            doc.page_content = doc.page_content.replace('\x00', '')
             doc.metadata["source"] = filename
         
         # Chunk the documents
@@ -64,7 +66,7 @@ async def upload_document(
         # Store in session‑specific vector store
         vector_store = get_vector_store(session_id)
         vector_store.add_documents(chunks)
-        vector_store.persist()
+
         
         return {
             "message": f"Uploaded {filename}",
@@ -80,34 +82,57 @@ async def upload_document(
 
 @router.get("/list")
 async def list_documents(session_id: str = Header(..., alias="X-Session-Id")):
-    vector_store = get_vector_store(session_id)
-    try:
-        # Retrieve all stored chunks (limit 10000)
-        result = vector_store.get(limit=10000)
-        sources = set()
-        for metadata in result.get('metadatas', []):
-            if metadata and 'source' in metadata:
-                sources.add(metadata['source'])
-        return {"documents": list(sources)}
-    except Exception as e:
-        raise HTTPException(500, f"Failed to list documents: {str(e)}")
-
+    connection_string = os.getenv("DATABASE_URL")
+    if not connection_string:
+        raise HTTPException(500, "DATABASE_URL not set")
+    engine = create_engine(connection_string)
+    collection_name = f"session_{session_id.replace('-', '_')}"
+    with engine.connect() as conn:
+        # Get collection UUID
+        result = conn.execute(
+            text("SELECT uuid FROM langchain_pg_collection WHERE name = :name"),
+            {"name": collection_name}
+        )
+        row = result.fetchone()
+        if not row:
+            return {"documents": []}
+        coll_uuid = row[0]
+        # Get distinct source filenames from embeddings metadata
+        rows = conn.execute(
+            text("SELECT DISTINCT cmetadata->>'source' as source FROM langchain_pg_embedding WHERE collection_id = :cid AND cmetadata->>'source' IS NOT NULL"),
+            {"cid": coll_uuid}
+        )
+        sources = [r[0] for r in rows.fetchall() if r[0]]
+        return {"documents": sources}
+    
 @router.delete("/delete/{filename}")
 async def delete_document(
     filename: str,
     session_id: str = Header(..., alias="X-Session-Id")
 ):
-    vector_store = get_vector_store(session_id)
-    # Get all chunks with their metadata
-    result = vector_store.get(limit=10000)
-    ids_to_delete = []
-    for i, metadata in enumerate(result.get('metadatas', [])):
-        if metadata and metadata.get('source') == filename:
-            ids_to_delete.append(result['ids'][i])
-    
-    if not ids_to_delete:
-        raise HTTPException(404, f"Document '{filename}' not found")
-    
-    vector_store.delete(ids=ids_to_delete)
-    vector_store.persist()
-    return {"message": f"Deleted {filename}", "chunks_removed": len(ids_to_delete)}
+    connection_string = os.getenv("DATABASE_URL")
+    if not connection_string:
+        raise HTTPException(500, "DATABASE_URL not set")
+    engine = create_engine(connection_string)
+    collection_name = f"session_{session_id.replace('-', '_')}"
+    with engine.connect() as conn:
+        # Get collection UUID
+        result = conn.execute(
+            text("SELECT uuid FROM langchain_pg_collection WHERE name = :name"),
+            {"name": collection_name}
+        )
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(404, f"Document '{filename}' not found")
+        coll_uuid = row[0]
+        # Delete embeddings where metadata source equals filename
+        res = conn.execute(
+            text("DELETE FROM langchain_pg_embedding WHERE collection_id = :cid AND cmetadata->>'source' = :src"),
+            {"cid": coll_uuid, "src": filename}
+        )
+        conn.commit()
+        deleted_count = res.rowcount
+        if deleted_count == 0:
+            raise HTTPException(404, f"Document '{filename}' not found")
+        # Optionally delete collection if it becomes empty (but keep it for simplicity)
+        return {"message": f"Deleted {filename}", "chunks_removed": deleted_count}
