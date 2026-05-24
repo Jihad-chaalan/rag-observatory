@@ -139,6 +139,8 @@ function DocumentUpload({ onUploadSuccess }) {
         setStatusStep("uploaded");
         setProgress(100);
 
+        if (onUploadSuccess) onUploadSuccess();
+
         startProcessingPoll(file.name);
       } catch (err) {
         alert(`Upload failed: ${err.message}`);
@@ -146,7 +148,7 @@ function DocumentUpload({ onUploadSuccess }) {
         setStatusStep(null);
       }
     },
-    [startProcessingPoll],
+    [startProcessingPoll, onUploadSuccess],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -233,3 +235,4 @@ function DocumentUpload({ onUploadSuccess }) {
 }
 
 export default DocumentUpload;
+

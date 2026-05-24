@@ -56,6 +56,7 @@
 
 html {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -70,6 +71,7 @@ body {
 
 #root {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 img,
@@ -151,7 +153,6 @@ a {
 }
 
 .page-subtitle {
-  max-width: 68ch;
   color: var(--muted);
 }
 
@@ -361,7 +362,7 @@ a {
 
 @media (max-width: 768px) {
   .navbar {
-    gap: 8px;
+    gap: 15px;
     padding: 10px 12px 12px;
   }
 
@@ -658,6 +659,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: flex-end;
 }
 
 .chat-textarea {
@@ -1290,7 +1292,14 @@ a {
 @media (max-width: 980px) {
   .logs-grid-head,
   .log-card {
+    min-width: 0;
     grid-template-columns: 1fr;
+  }
+
+  .log-card > *,
+  .log-meta-grid,
+  .log-token-breakdown {
+    min-width: 0;
   }
 
   .log-meta-grid {
@@ -1303,12 +1312,20 @@ a {
     grid-template-columns: 1fr 1.4fr;
   }
 
+  .log-card {
+    padding: 12px;
+  }
+
   .log-meta-grid {
     grid-template-columns: 1fr;
   }
 
   .logs-grid-head {
     display: none;
+  }
+
+  .log-token-breakdown .log-value {
+    white-space: normal;
   }
 }
 
@@ -1325,3 +1342,5 @@ a {
   font-family: var(--mono);
   font-size: 0.9rem;
 }
+
+
