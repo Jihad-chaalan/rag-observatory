@@ -50,15 +50,25 @@
 # async def health():
 #     return {"status": "ok"}
 
+# backend/app/main.py
 import os
 import sys
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-print("=== Starting minimal app ===", flush=True)
+print("=== Starting minimal app with CORS ===", flush=True)
 sys.stdout.flush()
 
-from fastapi import FastAPI
-
 app = FastAPI()
+
+# Add CORS middleware – allow all origins for testing
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
