@@ -56,12 +56,13 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-print("=== Starting minimal app with CORS ===", flush=True)
+print("=== Adding routers ===", flush=True)
 sys.stdout.flush()
+
+from app.routers import session, documents, chat, visualization
 
 app = FastAPI()
 
-# Add CORS middleware – allow all origins for testing
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -69,6 +70,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(session.router, prefix="/session", tags=["session"])
+app.include_router(documents.router, prefix="/documents", tags=["documents"])
+app.include_router(chat.router, prefix="/chat", tags=["chat"])
+app.include_router(visualization.router, prefix="/visualization", tags=["visualization"])
 
 @app.get("/")
 def root():
@@ -78,4 +84,4 @@ def root():
 def health():
     return {"status": "ok"}
 
-print("App created, ready to listen", flush=True)
+print("App with routers created", flush=True)
