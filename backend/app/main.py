@@ -56,27 +56,29 @@ import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.services.session_manager import init_session_manager
-from app.routers import session, documents, chat, visualization
 
-print("=== Adding session manager ===", flush=True)
+print("=== Main starting, before any heavy imports ===", flush=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("Lifespan starting", flush=True)
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         try:
+            # Import here to avoid import-time failures
+            from app.services.session_manager import init_session_manager
             init_session_manager(database_url=database_url, ttl_seconds=3600)
             print("Session manager initialized successfully", flush=True)
         except Exception as e:
             print(f"Warning: Session manager initialization failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
     else:
         print("Warning: DATABASE_URL not set, session cleanup disabled", flush=True)
     yield
 
 app = FastAPI(title="RAG Observatory", lifespan=lifespan)
 
-# Simple CORS that works
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -85,6 +87,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Import routers here (they might also have dependencies)
+from app.routers import session, documents, chat, visualization
 app.include_router(session.router, prefix="/session", tags=["session"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
@@ -98,4 +102,4 @@ def root():
 def health():
     return {"status": "ok"}
 
-print("App with session manager created", flush=True)
+print("App created", flush=True)
