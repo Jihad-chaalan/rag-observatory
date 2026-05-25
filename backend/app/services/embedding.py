@@ -1,10 +1,6 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import FastEmbedEmbeddings
 
-
-_embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2",
-    encode_kwargs={'normalize_embeddings': True}
-)
+_embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
 
 def get_embedding_function():
     return _embeddings

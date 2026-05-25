@@ -6,9 +6,6 @@ from langchain_community.document_loaders import (
     TextLoader,
     PyPDFLoader,
     CSVLoader,
-    UnstructuredExcelLoader,
-    UnstructuredWordDocumentLoader,
-    UnstructuredPowerPointLoader,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.services.vectorstore import get_vector_store
@@ -20,9 +17,6 @@ LOADER_MAP = {
     "txt": TextLoader,
     "pdf": PyPDFLoader,
     "csv": CSVLoader,
-    "xlsx": UnstructuredExcelLoader,
-    "docx": UnstructuredWordDocumentLoader,
-    "pptx": UnstructuredPowerPointLoader,
 }
 
 @router.post("/upload")
