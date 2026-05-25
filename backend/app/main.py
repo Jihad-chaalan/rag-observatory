@@ -53,16 +53,30 @@
 # backend/app/main.py
 import os
 import sys
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-print("=== Adding routers ===", flush=True)
-sys.stdout.flush()
-
+from app.services.session_manager import init_session_manager
 from app.routers import session, documents, chat, visualization
 
-app = FastAPI()
+print("=== Adding session manager ===", flush=True)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            init_session_manager(database_url=database_url, ttl_seconds=3600)
+            print("Session manager initialized successfully", flush=True)
+        except Exception as e:
+            print(f"Warning: Session manager initialization failed: {e}", flush=True)
+    else:
+        print("Warning: DATABASE_URL not set, session cleanup disabled", flush=True)
+    yield
+
+app = FastAPI(title="RAG Observatory", lifespan=lifespan)
+
+# Simple CORS that works
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -84,4 +98,4 @@ def root():
 def health():
     return {"status": "ok"}
 
-print("App with routers created", flush=True)
+print("App with session manager created", flush=True)
