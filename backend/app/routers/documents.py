@@ -20,7 +20,7 @@ LOADER_MAP = {
 }
 
 # Batch size for embedding (number of chunks processed at once)
-BATCH_SIZE = 100
+BATCH_SIZE = 50
 
 @router.post("/upload")
 async def upload_document(
