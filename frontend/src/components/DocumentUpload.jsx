@@ -203,7 +203,7 @@ function DocumentUpload({ onUploadSuccess }) {
         ) : (
           <p>Drag & drop a file here, or click to select</p>
         )}
-        <small>Supported: PDF, TXT, CSV.</small>
+        <small>Supported: PDF, TXT.</small>
       </div>
 
       {uploading && (

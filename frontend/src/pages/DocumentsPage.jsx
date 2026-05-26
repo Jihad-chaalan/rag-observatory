@@ -116,6 +116,10 @@ function DocumentsPage() {
               Drop one file at a time. The interface stays comfortable on mobile
               and desktop.
             </p>
+            <p className="page-subtitle">
+              ⏱️ Large files (e.g., more than 100 pages) may take minutes to
+              process due to embedding.{" "}
+            </p>
           </div>
           <DocumentUpload onUploadSuccess={handleDataChange} />
         </section>
@@ -126,9 +130,9 @@ function DocumentsPage() {
             <p className="page-subtitle">
               Keep the active document set clean and easy to scan.
             </p>
-            <div className="status-banner retention-banner upload-retention-note">
+            <p className="page-subtitle">
               Files are deleted 1 hour after you close this tab.
-            </div>
+            </p>
           </div>
           <DocumentList
             documents={documents}

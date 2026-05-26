@@ -52,9 +52,9 @@ function Navbar() {
               role="tooltip"
               className={`navbar-tooltip ${isInfoOpen ? "is-visible" : ""}`}
             >
-              Upload PDFs, Word, Excel, etc. Ask questions. Get answers with
-              source citations, confidence scores, token usage, and latency
-              logs. Visualize document chunks in 2D with t-SNE.
+              Upload PDFs, .txt Ask questions. Get answers with source
+              citations, confidence scores, token usage, and latency logs.
+              Visualize document chunks in 2D with t-SNE.
             </span>
           </div>
         </div>

@@ -1,5 +1,8 @@
 import axios from "axios";
-import { readSessionCacheMeta, writeSessionCacheMeta } from "../utils/sessionCache";
+import {
+  readSessionCacheMeta,
+  writeSessionCacheMeta,
+} from "../utils/sessionCache";
 
 // ----------------------------- Session ID Management -----------------------------
 const STORAGE_KEY = "rag_session_id";
@@ -35,15 +38,27 @@ function createClient(baseURL, timeout = DEFAULT_REQUEST_TIMEOUT_MS) {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.code === "ECONNABORTED" || String(error.message || "").toLowerCase().includes("timeout")) {
-        return Promise.reject(new Error("Request timed out. The server is still processing this request."));
+      if (
+        error.code === "ECONNABORTED" ||
+        String(error.message || "")
+          .toLowerCase()
+          .includes("timeout")
+      ) {
+        return Promise.reject(
+          new Error(
+            "Request timed out. The server is still processing this request.",
+          ),
+        );
       }
       if (error.response) {
-        const message = error.response.data?.detail || error.response.statusText;
+        const message =
+          error.response.data?.detail || error.response.statusText;
         return Promise.reject(new Error(message));
       }
       if (error.request) {
-        return Promise.reject(new Error("Backend is unreachable. Is the server running?"));
+        return Promise.reject(
+          new Error("Backend is unreachable. Is the server running?"),
+        );
       }
       return Promise.reject(error);
     },
@@ -56,10 +71,33 @@ const proxyApi = createClient(import.meta.env.VITE_API_URL || "/api");
 const directApi = createClient("http://localhost:8000");
 const loopbackApi = createClient("http://127.0.0.1:8000");
 
+// async function requestWithFallback(config) {
+//   const clients = [proxyApi, directApi, loopbackApi];
+//   let lastError = null;
+
+//   for (const client of clients) {
+//     try {
+//       return await client.request(config);
+//     } catch (error) {
+//       lastError = error;
+//       if (error.message !== "Backend is unreachable. Is the server running?") {
+//         throw error;
+//       }
+//     }
+//   }
+
+//   throw lastError;
+// }
+
 async function requestWithFallback(config) {
+  // In production (Vercel, Netlify, etc.), use only the primary API client
+  if (import.meta.env.PROD) {
+    return proxyApi.request(config);
+  }
+
+  // Development: fallback chain
   const clients = [proxyApi, directApi, loopbackApi];
   let lastError = null;
-
   for (const client of clients) {
     try {
       return await client.request(config);
@@ -70,7 +108,6 @@ async function requestWithFallback(config) {
       }
     }
   }
-
   throw lastError;
 }
 
@@ -114,17 +151,26 @@ export async function sendChat(question) {
 }
 
 export async function listDocuments() {
-  const response = await requestWithFallback({ method: "get", url: "/documents/list" });
+  const response = await requestWithFallback({
+    method: "get",
+    url: "/documents/list",
+  });
   return response.data.documents;
 }
 
 export async function getLogs() {
-  const response = await requestWithFallback({ method: "get", url: "/chat/logs" });
+  const response = await requestWithFallback({
+    method: "get",
+    url: "/chat/logs",
+  });
   return response.data.logs;
 }
 
 export async function getTsne() {
-  const response = await requestWithFallback({ method: "get", url: "/visualization/tsne" });
+  const response = await requestWithFallback({
+    method: "get",
+    url: "/visualization/tsne",
+  });
   return response.data.points;
 }
 
@@ -147,26 +193,41 @@ async function conditionalGet(path, namespace) {
 
   const etag = response.headers["etag"] || response.headers["ETag"] || null;
   const lastModified =
-    response.headers["last-modified"] || response.headers["Last-Modified"] || null;
+    response.headers["last-modified"] ||
+    response.headers["Last-Modified"] ||
+    null;
 
   writeSessionCacheMeta(namespace, { etag, lastModified });
 
-  return { notModified: false, data: response.data, meta: { etag, lastModified } };
+  return {
+    notModified: false,
+    data: response.data,
+    meta: { etag, lastModified },
+  };
 }
 
 export async function listDocumentsConditional() {
   const res = await conditionalGet("/documents/list", "documents");
-  return { notModified: res.notModified, documents: res.data ? res.data.documents : null };
+  return {
+    notModified: res.notModified,
+    documents: res.data ? res.data.documents : null,
+  };
 }
 
 export async function getTsneConditional() {
   const res = await conditionalGet("/visualization/tsne", "tsne");
-  return { notModified: res.notModified, points: res.data ? res.data.points : null };
+  return {
+    notModified: res.notModified,
+    points: res.data ? res.data.points : null,
+  };
 }
 
 export async function getLogsConditional() {
   const res = await conditionalGet("/chat/logs", "chat-logs");
-  return { notModified: res.notModified, logs: res.data ? res.data.logs : null };
+  return {
+    notModified: res.notModified,
+    logs: res.data ? res.data.logs : null,
+  };
 }
 
 export function setSessionIdManually(newSessionId) {
