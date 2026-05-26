@@ -1,8 +1,11 @@
 import time
+import os
 from groq import Groq
-from app.config import settings  # we'll create this
+from app.config import settings  
 
-client = Groq(api_key=settings.GROQ_API_KEY)
+
+PROXY_BASE_URL = os.getenv("PROXY_BASE_URL")
+client = Groq(api_key="unused", base_url=PROXY_BASE_URL)
 
 def call_groq(messages, model="openai/gpt-oss-120b"):
     start_time = time.time()
