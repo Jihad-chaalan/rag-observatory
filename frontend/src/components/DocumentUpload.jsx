@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { uploadFile, listDocumentsConditional, getTsneConditional } from "../services/api";
+import {
+  uploadFile,
+  listDocumentsConditional,
+  getTsneConditional,
+} from "../services/api";
 import { removeSessionCache } from "../utils/sessionCache";
 
 function getStatusCopy(statusStep) {
@@ -66,7 +70,8 @@ function DocumentUpload({ onUploadSuccess }) {
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
-      if (successNoteTimerRef.current) clearTimeout(successNoteTimerRef.current);
+      if (successNoteTimerRef.current)
+        clearTimeout(successNoteTimerRef.current);
     };
   }, []);
 
@@ -80,14 +85,17 @@ function DocumentUpload({ onUploadSuccess }) {
 
         try {
           const docsRes = await listDocumentsConditional();
-          const isRegistered = docsRes.notModified ? false : (docsRes.documents || []).includes(filename);
+          const isRegistered = docsRes.notModified
+            ? false
+            : (docsRes.documents || []).includes(filename);
           if (isRegistered) {
             setStatusStep("processing");
           }
 
           const tsneRes = await getTsneConditional();
           const points = tsneRes.notModified ? null : tsneRes.points || [];
-          const hasPoints = points && points.some((p) => p.filename === filename);
+          const hasPoints =
+            points && points.some((p) => p.filename === filename);
           if (hasPoints) {
             setStatusStep("indexed");
             clearInterval(pollRef.current);
@@ -97,7 +105,8 @@ function DocumentUpload({ onUploadSuccess }) {
             setUploading(false);
             setProgress(100);
             setSuccessNoteVisible(true);
-            if (successNoteTimerRef.current) clearTimeout(successNoteTimerRef.current);
+            if (successNoteTimerRef.current)
+              clearTimeout(successNoteTimerRef.current);
             successNoteTimerRef.current = setTimeout(() => {
               setSuccessNoteVisible(false);
             }, 15000);
@@ -127,7 +136,8 @@ function DocumentUpload({ onUploadSuccess }) {
       setStatusStep("uploading");
       setUploadedFilename(file.name);
       setSuccessNoteVisible(false);
-      if (successNoteTimerRef.current) clearTimeout(successNoteTimerRef.current);
+      if (successNoteTimerRef.current)
+        clearTimeout(successNoteTimerRef.current);
 
       try {
         await uploadFile(file, (evt) => {
@@ -157,12 +167,10 @@ function DocumentUpload({ onUploadSuccess }) {
       "text/plain": [".txt"],
       "application/pdf": [".pdf"],
       "text/csv": [".csv"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
-        ".docx",
-      ],
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
-        ".pptx",
-      ],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        [".pptx"],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
@@ -184,7 +192,8 @@ function DocumentUpload({ onUploadSuccess }) {
     <div>
       {successNoteVisible && (
         <div className="status-banner upload-success-note">
-          Upload complete. You can see it in the t-SNE tab and the chunks vector.
+          Upload complete. You can see it in the t-SNE tab and the chunks
+          vector.
         </div>
       )}
       <div {...getRootProps()} className="dropzone">
@@ -194,7 +203,7 @@ function DocumentUpload({ onUploadSuccess }) {
         ) : (
           <p>Drag & drop a file here, or click to select</p>
         )}
-        <small>Supported: PDF, TXT, CSV, Word, PowerPoint</small>
+        <small>Supported: PDF, TXT, CSV.</small>
       </div>
 
       {uploading && (
@@ -207,7 +216,9 @@ function DocumentUpload({ onUploadSuccess }) {
                 <p>{statusCopy}</p>
               </div>
             </div>
-            <span className="loading-chip">{statusStep === "indexed" ? "OK" : phaseLabel}</span>
+            <span className="loading-chip">
+              {statusStep === "indexed" ? "OK" : phaseLabel}
+            </span>
           </div>
 
           <div className="processing-file-row">
@@ -220,13 +231,26 @@ function DocumentUpload({ onUploadSuccess }) {
           </div>
 
           <div className="processing-steps">
-            <div className={`step ${statusStep === "uploading" ? "active" : ""}`}>Uploading</div>
-            <div className={`step ${statusStep === "uploaded" || statusStep === "processing" ? "active" : ""}`}>Processing</div>
-            <div className={`step ${statusStep === "indexed" ? "active" : ""}`}>Ready</div>
+            <div
+              className={`step ${statusStep === "uploading" ? "active" : ""}`}
+            >
+              Uploading
+            </div>
+            <div
+              className={`step ${statusStep === "uploaded" || statusStep === "processing" ? "active" : ""}`}
+            >
+              Processing
+            </div>
+            <div className={`step ${statusStep === "indexed" ? "active" : ""}`}>
+              Ready
+            </div>
           </div>
 
           {statusStep === "timeout" && (
-            <div className="error-note">Processing is taking longer than expected. It will continue in background.</div>
+            <div className="error-note">
+              Processing is taking longer than expected. It will continue in
+              background.
+            </div>
           )}
         </div>
       )}
@@ -235,4 +259,3 @@ function DocumentUpload({ onUploadSuccess }) {
 }
 
 export default DocumentUpload;
-
