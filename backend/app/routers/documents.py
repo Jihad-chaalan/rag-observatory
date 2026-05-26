@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Header, HTTPException
 from tempfile import NamedTemporaryFile
 from sqlalchemy import create_engine, text
 import os
+import gc
 from langchain_community.document_loaders import (
     TextLoader,
     PyPDFLoader,
@@ -48,19 +49,40 @@ async def upload_document(
         for doc in docs:
             doc.page_content = doc.page_content.replace('\x00', '')
             doc.metadata["source"] = filename
+
+        # Compute total characters across all documents
+        total_chars = sum(len(doc.page_content) for doc in docs)
         
-        # Chunk the documents
+        # Dynamic chunk size based on document length
+        if total_chars > 100_000:
+            chunk_size = 1500
+            chunk_overlap = 150
+        elif total_chars > 20_000:
+            chunk_size = 1000
+            chunk_overlap = 100
+        else:
+            chunk_size = 500
+            chunk_overlap = 50
+
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
             separators=["\n\n", "\n", " ", ""]
         )
         chunks = text_splitter.split_documents(docs)
-        
+
+        # Limit total chunks to avoid memory overload
+        MAX_CHUNKS = 1500
+        if len(chunks) > MAX_CHUNKS:
+            raise HTTPException(413, f"Document too large: would generate {len(chunks)} chunks (max {MAX_CHUNKS})")
+
         # Store in session‑specific vector store
         vector_store = get_vector_store(session_id)
         vector_store.add_documents(chunks)
 
+
+        # Force garbage collection to free memory
+        gc.collect()
         
         return {
             "message": f"Uploaded {filename}",

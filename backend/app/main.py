@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RAG Observatory", lifespan=lifespan)
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
