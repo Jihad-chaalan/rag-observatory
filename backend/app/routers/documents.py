@@ -13,12 +13,14 @@ from app.services.vectorstore import get_vector_store
 
 router = APIRouter()
 
-# Map file extensions to LangChain loaders
 LOADER_MAP = {
     "txt": TextLoader,
     "pdf": PyPDFLoader,
-    "csv": CSVLoader,
+    # "csv": CSVLoader,   # uncomment if you keep CSV
 }
+
+# Batch size for embedding (number of chunks processed at once)
+BATCH_SIZE = 100
 
 @router.post("/upload")
 async def upload_document(
@@ -29,30 +31,30 @@ async def upload_document(
     ext = filename.split('.')[-1].lower()
     if ext not in LOADER_MAP:
         raise HTTPException(400, f"Unsupported file type. Allowed: {', '.join(LOADER_MAP.keys())}")
-    
-    # Save uploaded file temporarily (LangChain loaders need a file path)
+
+    # Save uploaded file temporarily
     with NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
         content = await file.read()
         tmp.write(content)
         tmp_path = tmp.name
-    
+
     try:
         # Load documents using the appropriate LangChain loader
         loader_class = LOADER_MAP[ext]
         loader = loader_class(tmp_path)
         docs = loader.load()
-        
+
         if not docs:
             raise HTTPException(400, "No content extracted from file")
-        
-        # Add source filename to metadata of each document
+
+        # Clean null bytes and set source metadata
         for doc in docs:
             doc.page_content = doc.page_content.replace('\x00', '')
             doc.metadata["source"] = filename
 
         # Compute total characters across all documents
         total_chars = sum(len(doc.page_content) for doc in docs)
-        
+
         # Dynamic chunk size based on document length
         if total_chars > 100_000:
             chunk_size = 1500
@@ -71,24 +73,26 @@ async def upload_document(
         )
         chunks = text_splitter.split_documents(docs)
 
-        # Limit total chunks to avoid memory overload
-        MAX_CHUNKS = 1500
+        # Optional limit on total chunks (still high, but safe)
+        MAX_CHUNKS = 2000   # adjust as needed; batching will handle memory
         if len(chunks) > MAX_CHUNKS:
             raise HTTPException(413, f"Document too large: would generate {len(chunks)} chunks (max {MAX_CHUNKS})")
 
-        # Store in session‑specific vector store
+        # Get vector store (creates session‑specific collection)
         vector_store = get_vector_store(session_id)
-        vector_store.add_documents(chunks)
 
+        # Process chunks in batches to keep memory low
+        for i in range(0, len(chunks), BATCH_SIZE):
+            batch = chunks[i:i+BATCH_SIZE]
+            vector_store.add_documents(batch)
+            gc.collect()   # force memory release after each batch
 
-        # Force garbage collection to free memory
-        gc.collect()
-        
         return {
             "message": f"Uploaded {filename}",
             "chunks": len(chunks),
             "session_id": session_id
         }
+
     except Exception as e:
         raise HTTPException(500, f"Processing error: {str(e)}")
     finally:
