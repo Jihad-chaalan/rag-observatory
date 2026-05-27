@@ -2,8 +2,24 @@
 
 **RAG Observatory** is a production‑ready, session‑isolated Retrieval‑Augmented Generation (RAG) system that lets users upload documents, chat with them, and visualise embeddings. Built with **FastAPI**, **LangChain**, **PostgreSQL + pgvector**, **React (Vite)**, and **Groq** (via Cloudflare proxy). Deployed on **DigitalOcean** and **Vercel**.
 
-![alt text](image-1.png)
-
+<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin: 30px 0;">
+  <div style="flex: 1; min-width: 250px;">
+    <img src="Screenshot 2026-05-27 144807.png" alt="Documents page – upload & list" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <p style="text-align: center; font-size: 0.9rem; margin-top: 8px;"><strong>📄 Upload & manage documents</strong></p>
+  </div>
+  <div style="flex: 1; min-width: 250px;">
+    <img src="Screenshot 2026-05-27 144834.png" alt="t‑SNE visualisation" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <p style="text-align: center; font-size: 0.9rem; margin-top: 8px;"><strong>📊 t‑SNE chunk visualisation</strong></p>
+  </div>
+  <div style="flex: 1; min-width: 250px;">
+    <img src="Screenshot 2026-05-27 144850.png" alt="Chat interface with sources" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <p style="text-align: center; font-size: 0.9rem; margin-top: 8px;"><strong>💬 Chat with sources & confidence</strong></p>
+  </div>
+  <div style="flex: 1; min-width: 250px;">
+    <img src="Screenshot 2026-05-27 144903.png" alt="Request logs table" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <p style="text-align: center; font-size: 0.9rem; margin-top: 8px;"><strong>📜 Token usage & latency logs</strong></p>
+  </div>
+</div>
 _Live demo: [https://rag-observatory.vercel.app](https://rag-observatory.vercel.app)_
 
 ---
