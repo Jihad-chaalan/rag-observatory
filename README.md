@@ -37,13 +37,12 @@ _Live demo: [https://rag-observatory.vercel.app](https://rag-observatory.vercel.
 
 ## 🏗️ Architecture
 
-```mermaid
 graph LR
-    User --> Vercel[Frontend (Vercel)]
-    Vercel --> DO[Backend (DigitalOcean)]
-    DO --> Neon[(Neon PostgreSQL + pgvector)]
-    DO --> CF[Cloudflare Worker (Groq proxy)]
-    CF --> Groq[Groq API]
+User --> Vercel[Frontend (Vercel)]
+Vercel --> DO[Backend (DigitalOcean)]
+DO --> Neon[(Neon PostgreSQL + pgvector)]
+DO --> CF[Cloudflare Worker (Groq proxy)]
+CF --> Groq[Groq API]
 Frontend sends requests to https://api.yourdomain.com.
 
 Backend (FastAPI) runs inside a Docker container, handles document processing, retrieval, and chat.
@@ -62,16 +61,15 @@ Lightweight embedding – BAAI/bge-small-en-v1.5 (67 MB, no torch).
 Cloudflare proxy – bypasses Groq IP blocks, adds security.
 
 🔐 Environment Variables
-Variable	Description
-DATABASE_URL	Neon PostgreSQL connection string
-GROQ_API_KEY	Groq API key (not used directly if proxy)
-PROXY_BASE_URL	Cloudflare Worker base URL
-PROXY_ACCESS_TOKEN	Optional: auth token for Worker
-RETRIEVAL_THRESHOLD	Minimum cosine similarity for retrieval
-TOP_K	Number of chunks retrieved per query
+Variable Description
+DATABASE_URL Neon PostgreSQL connection string
+GROQ_API_KEY Groq API key (not used directly if proxy)
+PROXY_BASE_URL Cloudflare Worker base URL
+PROXY_ACCESS_TOKEN Optional: auth token for Worker
+RETRIEVAL_THRESHOLD Minimum cosine similarity for retrieval
+TOP_K Number of chunks retrieved per query
 🤝 Contributing
 This is a personal portfolio project, but feedback and suggestions are welcome.
-
 
 🙏 Acknowledgements
 LangChain
@@ -85,4 +83,7 @@ Cloudflare Workers
 Vercel
 
 DigitalOcean
+
+```
+
 ```
