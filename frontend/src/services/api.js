@@ -4,7 +4,6 @@ import {
   writeSessionCacheMeta,
 } from "../utils/sessionCache";
 
-// ----------------------------- Session ID Management -----------------------------
 const STORAGE_KEY = "rag_session_id";
 const DEFAULT_REQUEST_TIMEOUT_MS = 120000;
 
@@ -71,31 +70,11 @@ const proxyApi = createClient(import.meta.env.VITE_API_URL || "/api");
 const directApi = createClient("http://localhost:8000");
 const loopbackApi = createClient("http://127.0.0.1:8000");
 
-// async function requestWithFallback(config) {
-//   const clients = [proxyApi, directApi, loopbackApi];
-//   let lastError = null;
-
-//   for (const client of clients) {
-//     try {
-//       return await client.request(config);
-//     } catch (error) {
-//       lastError = error;
-//       if (error.message !== "Backend is unreachable. Is the server running?") {
-//         throw error;
-//       }
-//     }
-//   }
-
-//   throw lastError;
-// }
-
 async function requestWithFallback(config) {
-  // In production (Vercel, Netlify, etc.), use only the primary API client
   if (import.meta.env.PROD) {
     return proxyApi.request(config);
   }
 
-  // Development: fallback chain
   const clients = [proxyApi, directApi, loopbackApi];
   let lastError = null;
   for (const client of clients) {
@@ -111,7 +90,8 @@ async function requestWithFallback(config) {
   throw lastError;
 }
 
-// ----------------------------- API Methods -----------------------------
+// API Methods
+
 export async function sendHeartbeat() {
   try {
     await requestWithFallback({ method: "post", url: "/session/heartbeat" });
@@ -129,8 +109,17 @@ export async function uploadFile(file, onUploadProgress = undefined) {
     data: formData,
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress,
+    timeout: 0,
   });
-  return response.data;
+  return response.data; // expects { status: "accepted", job_id, session_id }
+}
+
+export async function getJobStatus(jobId) {
+  const response = await requestWithFallback({
+    method: "get",
+    url: `/documents/status/${encodeURIComponent(jobId)}`,
+  });
+  return response.data; // job object
 }
 
 export async function deleteDocument(filename) {

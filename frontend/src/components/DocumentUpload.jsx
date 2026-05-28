@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   uploadFile,
+  getJobStatus,
   listDocumentsConditional,
   getTsneConditional,
 } from "../services/api";
@@ -12,11 +13,13 @@ function getStatusCopy(statusStep) {
     case "uploading":
       return "Uploading your file now. Bigger files may take a little longer to finish.";
     case "uploaded":
-      return "Uploaded. Processing is still running in the background.";
+      return "Uploaded. Processing is running in the background.";
     case "processing":
-      return "Processing your file. Embeddings are still running.";
+      return "Processing your file. Embeddings are being generated.";
     case "indexed":
-      return "Processing is complete. The document is ready to use.";
+      return "Processing complete. The document is ready to use.";
+    case "failed":
+      return "Processing failed. Check logs or retry upload.";
     case "timeout":
       return "The upload finished, but backend processing is taking longer than expected.";
     default:
@@ -34,27 +37,12 @@ function getPhaseLabel(statusStep) {
       return "Processing";
     case "indexed":
       return "Ready";
+    case "failed":
+      return "Failed";
     case "timeout":
       return "Processing";
     default:
       return "Uploading";
-  }
-}
-
-function getPhaseHint(statusStep) {
-  switch (statusStep) {
-    case "uploading":
-      return "This label tracks file transfer only.";
-    case "uploaded":
-      return "The upload is done. Processing is still running.";
-    case "processing":
-      return "Chunking and embedding are still running.";
-    case "indexed":
-      return "Embedding is finished. OK.";
-    case "timeout":
-      return "Processing is still running in the background.";
-    default:
-      return "";
   }
 }
 
@@ -63,7 +51,14 @@ function DocumentUpload({ onUploadSuccess }) {
   const [progress, setProgress] = useState(0);
   const [statusStep, setStatusStep] = useState(null);
   const [uploadedFilename, setUploadedFilename] = useState(null);
+
+  const [activeJobId, setActiveJobId] = useState(null);
+  const [jobStatus, setJobStatus] = useState(null);
+  const [chunksProcessed, setChunksProcessed] = useState(0);
+
   const [successNoteVisible, setSuccessNoteVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+
   const pollRef = useRef(null);
   const successNoteTimerRef = useRef(null);
 
@@ -75,47 +70,54 @@ function DocumentUpload({ onUploadSuccess }) {
     };
   }, []);
 
-  const startProcessingPoll = useCallback(
+  // Fallback filename polling (kept for compatibility)
+  const startFilenamePoll = useCallback(
     (filename) => {
+      setJobStatus("processing");
       setStatusStep("processing");
-
       let checks = 0;
+
       pollRef.current = setInterval(async () => {
         checks += 1;
-
         try {
           const docsRes = await listDocumentsConditional();
           const isRegistered = docsRes.notModified
             ? false
             : (docsRes.documents || []).includes(filename);
-          if (isRegistered) {
-            setStatusStep("processing");
-          }
 
-          const tsneRes = await getTsneConditional();
-          const points = tsneRes.notModified ? null : tsneRes.points || [];
-          const hasPoints =
-            points && points.some((p) => p.filename === filename);
-          if (hasPoints) {
-            setStatusStep("indexed");
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-            removeSessionCache("documents");
-            removeSessionCache("tsne");
-            setUploading(false);
-            setProgress(100);
-            setSuccessNoteVisible(true);
-            if (successNoteTimerRef.current)
-              clearTimeout(successNoteTimerRef.current);
-            successNoteTimerRef.current = setTimeout(() => {
-              setSuccessNoteVisible(false);
-            }, 15000);
-            if (onUploadSuccess) onUploadSuccess();
+          if (isRegistered) {
+            const tsneRes = await getTsneConditional();
+            const points = tsneRes.notModified ? null : tsneRes.points || [];
+            const hasPoints =
+              points && points.some((p) => p.filename === filename);
+
+            if (hasPoints) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+
+              setJobStatus("completed");
+              setStatusStep("indexed");
+              setUploading(false);
+              setProgress(100);
+              setSuccessNoteVisible(true);
+
+              if (successNoteTimerRef.current)
+                clearTimeout(successNoteTimerRef.current);
+              successNoteTimerRef.current = setTimeout(
+                () => setSuccessNoteVisible(false),
+                15000,
+              );
+
+              if (onUploadSuccess) onUploadSuccess();
+              removeSessionCache("documents");
+              removeSessionCache("tsne");
+            }
           }
 
           if (checks > 150) {
             clearInterval(pollRef.current);
             pollRef.current = null;
+            setJobStatus("timeout");
             setStatusStep("timeout");
             setUploading(false);
           }
@@ -127,38 +129,127 @@ function DocumentUpload({ onUploadSuccess }) {
     [onUploadSuccess],
   );
 
+  const startJobPoll = useCallback(
+    (jobId) => {
+      setJobStatus("running");
+      setStatusStep("processing");
+      let checks = 0;
+      const POLL_INTERVAL = 2000;
+
+      pollRef.current = setInterval(async () => {
+        checks += 1;
+        try {
+          const status = await getJobStatus(jobId);
+
+          setJobStatus(status?.status || "running");
+          const processed = Number(status?.progress?.chunks_processed || 0);
+          if (!Number.isNaN(processed)) {
+            setChunksProcessed(processed);
+          }
+
+          if (status.status === "completed") {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+
+            setStatusStep("indexed");
+            setUploading(false);
+            setProgress(100);
+            setSuccessNoteVisible(true);
+
+            removeSessionCache("documents");
+            removeSessionCache("tsne");
+
+            if (successNoteTimerRef.current)
+              clearTimeout(successNoteTimerRef.current);
+            successNoteTimerRef.current = setTimeout(
+              () => setSuccessNoteVisible(false),
+              15000,
+            );
+
+            if (onUploadSuccess) onUploadSuccess();
+            return;
+          }
+
+          if (status.status === "failed") {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+
+            setJobStatus("failed");
+            setStatusStep("failed");
+            setUploading(false);
+            setErrorMessage(status.message || "Processing failed");
+            return;
+          }
+
+          // Coarse progress display while processing
+          if (status.progress && status.progress.chunks_processed) {
+            const p = Math.min(
+              99,
+              Math.round((status.progress.chunks_processed / 100) * 100),
+            );
+            setProgress((prev) => Math.max(prev, p));
+          }
+
+          if (checks > 300) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+
+            setJobStatus("timeout");
+            setStatusStep("timeout");
+            setUploading(false);
+          }
+        } catch (err) {
+          console.error("Job poll failed:", err);
+        }
+      }, POLL_INTERVAL);
+    },
+    [onUploadSuccess],
+  );
+
   const onDrop = useCallback(
     async (acceptedFiles) => {
       if (acceptedFiles.length === 0) return;
       const file = acceptedFiles[0];
+
       setUploading(true);
       setProgress(0);
       setStatusStep("uploading");
+      setJobStatus("uploading");
       setUploadedFilename(file.name);
+      setActiveJobId(null);
+      setChunksProcessed(0);
       setSuccessNoteVisible(false);
+      setErrorMessage(null);
+
       if (successNoteTimerRef.current)
         clearTimeout(successNoteTimerRef.current);
 
       try {
-        await uploadFile(file, (evt) => {
+        const res = await uploadFile(file, (evt) => {
           if (evt && evt.lengthComputable) {
             setProgress(Math.round((evt.loaded / evt.total) * 100));
           }
         });
 
+        const jobId = res.job_id || res.jobId || res.job || null;
         setStatusStep("uploaded");
+        setJobStatus("uploaded");
         setProgress(100);
+        setActiveJobId(jobId);
 
-        if (onUploadSuccess) onUploadSuccess();
-
-        startProcessingPoll(file.name);
+        if (jobId) {
+          startJobPoll(jobId);
+        } else {
+          startFilenamePoll(file.name);
+        }
       } catch (err) {
         alert(`Upload failed: ${err.message}`);
         setUploading(false);
         setStatusStep(null);
+        setJobStatus(null);
       }
     },
-    [startProcessingPoll, onUploadSuccess],
+    [startJobPoll, startFilenamePoll],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -166,11 +257,6 @@ function DocumentUpload({ onUploadSuccess }) {
     accept: {
       "text/plain": [".txt"],
       "application/pdf": [".pdf"],
-      "text/csv": [".csv"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        [".docx"],
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-        [".pptx"],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
@@ -186,7 +272,6 @@ function DocumentUpload({ onUploadSuccess }) {
 
   const statusCopy = getStatusCopy(statusStep);
   const phaseLabel = getPhaseLabel(statusStep);
-  const phaseHint = getPhaseHint(statusStep);
 
   return (
     <div>
@@ -196,6 +281,11 @@ function DocumentUpload({ onUploadSuccess }) {
           vector.
         </div>
       )}
+
+      {errorMessage && (
+        <div className="status-banner error-note">{errorMessage}</div>
+      )}
+
       <div {...getRootProps()} className="dropzone">
         <input {...getInputProps()} />
         {isDragActive ? (
@@ -203,7 +293,7 @@ function DocumentUpload({ onUploadSuccess }) {
         ) : (
           <p>Drag & drop a file here, or click to select</p>
         )}
-        <small>Supported: PDF, TXT.</small>
+        <small>Supported: PDF, TXT. Maximum 10 MB.</small>
       </div>
 
       {uploading && (
@@ -223,7 +313,19 @@ function DocumentUpload({ onUploadSuccess }) {
 
           <div className="processing-file-row">
             <span className="processing-filename">{uploadedFilename}</span>
-            <span className="processing-meta">{phaseHint}</span>
+          </div>
+          {/* 
+          {activeJobId && (
+            <div className="processing-file-row">
+              <span className="processing-filename">Job: {activeJobId}</span>
+            </div>
+          )} */}
+
+          <div className="processing-file-row">
+            <span className="processing-filename">
+              Chunks processed: {chunksProcessed.toLocaleString()}
+              {jobStatus ? ` (${jobStatus})` : ""}
+            </span>
           </div>
 
           <div className="progress-bar">
@@ -250,6 +352,12 @@ function DocumentUpload({ onUploadSuccess }) {
             <div className="error-note">
               Processing is taking longer than expected. It will continue in
               background.
+            </div>
+          )}
+
+          {statusStep === "failed" && (
+            <div className="error-note">
+              Processing failed. You can retry uploading the file.
             </div>
           )}
         </div>
